@@ -3,11 +3,18 @@ package com.azesmwayreactnativeunity;
 import android.app.Activity;
 import android.graphics.PixelFormat;
 import android.os.Build;
+import android.util.Log;
+import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewParent;
 import android.view.WindowManager;
 
 import com.unity3d.player.UnityPlayer;
 import com.unity3d.player.IUnityPlayerLifecycleEvents;
+
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+
 import static android.view.ViewGroup.LayoutParams.MATCH_PARENT;
 
 public class ReactNativeUnity {
@@ -106,9 +113,9 @@ public class ReactNativeUnity {
         if (unityPlayer == null) {
             return;
         }
-        if (unityPlayer.getParent() != null) {
-            ((ViewGroup) unityPlayer.getParent()).removeView(unityPlayer);
-        }
+
+        resetPlayerParent();
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             unityPlayer.setZ(-1f);
         }
@@ -121,9 +128,9 @@ public class ReactNativeUnity {
         if (unityPlayer == null) {
             return;
         }
-        if (unityPlayer.getParent() != null) {
-            ((ViewGroup) unityPlayer.getParent()).removeView(unityPlayer);
-        }
+
+        resetPlayerParent();
+
         ViewGroup.LayoutParams layoutParams = new ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT);
         group.addView(unityPlayer, 0, layoutParams);
         unityPlayer.windowFocusChanged(true);
@@ -135,5 +142,40 @@ public class ReactNativeUnity {
         void onReady();
         void onUnload();
         void onQuit();
+    }
+
+    private static void resetPlayerParent() {
+        if (unityPlayer.getParent() == null) {
+            return;
+        }
+
+        ((ViewGroup) unityPlayer.getParent()).removeView(unityPlayer);
+
+        if (unityPlayer.getParent() == null) {
+            return;
+        }
+
+        Log.d("ReactNativeUnity", "using reflection to reset parent");
+
+        try {
+            Method method = View.class.getDeclaredMethod("assignParent", new Class<?>[]{ViewParent.class});
+            method.setAccessible(true);
+            method.invoke(unityPlayer, new Object[]{null});
+            method.setAccessible(false);
+        } catch (NoSuchMethodException e) {
+            e.printStackTrace();
+        } catch (IllegalArgumentException e) {
+            e.printStackTrace();
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        } catch (InvocationTargetException e) {
+            e.printStackTrace();
+        }
+
+        if (unityPlayer.getParent() == null) {
+            return;
+        }
+
+        Log.e("ReactNativeUnity", "unable to reset parent of player " + unityPlayer);
     }
 }
